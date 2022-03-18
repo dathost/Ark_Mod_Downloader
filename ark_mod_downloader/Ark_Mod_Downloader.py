@@ -79,6 +79,10 @@ class ArkModDownloader:
         # Check provided directory
         if self.steamcmd:
             print("[+] Checking Provided Path For SteamCMD")
+            if os.path.isfile(self.steamcmd):
+                print("[+] SteamCMD Found At Provided Path")
+                return True
+
             if os.path.isfile(os.path.join(self.steamcmd, "steamcmd.exe")):
                 self.steamcmd = os.path.join(self.steamcmd, "steamcmd.exe")
                 print("[+] SteamCMD Found At Provided Path")
