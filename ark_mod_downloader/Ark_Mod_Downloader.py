@@ -12,7 +12,7 @@ import zipfile
 
 class ArkModDownloader:
     def __init__(
-        self, steamcmd, modids, working_dir, mod_update, modname, preserve=False
+        self, steamcmd: str, modids, working_dir, mod_update, modname, preserve=False
     ):
 
         # I not working directory provided, check if CWD has an ARK server.
@@ -31,7 +31,7 @@ class ArkModDownloader:
         self.map_names = []  # Stores map names from mod.info
         self.meta_data = OrderedDict([])  # Stores key value from modmeta.info
         self.temp_mod_path = os.path.join(
-            os.path.dirname(self.steamcmd), r"steamapps\workshop\content\346110"
+            os.path.dirname(self.steamcmd), "steamapps", "workshop", "content", "346110"
         )
         self.preserve = preserve
 
@@ -62,7 +62,7 @@ class ArkModDownloader:
     def working_dir_check(self):
         print("[!] No working directory provided.  Checking Current Directory")
         print("[!] " + os.getcwd())
-        if os.path.isdir(os.path.join(os.getcwd(), "ShooterGame\Content")):
+        if os.path.isdir(os.path.join(os.getcwd(), "ShooterGame", "Content")):
             print("[+] Current Directory Has Ark Server.  Using The Current Directory")
             self.working_dir = os.getcwd()
         else:
@@ -96,9 +96,9 @@ class ArkModDownloader:
             return True
 
         # Check working directory
-        if os.path.isfile(os.path.join(self.working_dir, "SteamCMD\steamcmd.exe")):
+        if os.path.isfile(os.path.join(self.working_dir, "SteamCMD", "steamcmd.exe")):
             print("[+] Located SteamCMD")
-            self.steamcmd = os.path.join(self.working_dir, "SteamCMD\steamcmd.exe")
+            self.steamcmd = os.path.join(self.working_dir, "SteamCMD", "steamcmd.exe")
             return True
 
         print("[+} SteamCMD Not Found In Common Locations. Attempting To Download")
@@ -119,7 +119,7 @@ class ArkModDownloader:
                     zip_file.extractall(os.path.join(self.working_dir, "SteamCMD"))
                 except zipfile.BadZipfile as e:
                     print("[x] Failed To Extract steamcmd.zip. Aborting")
-                    print("[x] Error: " + e)
+                    print("[x] Error: " + str(e))
                     sys.exit()
 
         except urllib.request.HTTPError as e:
@@ -175,11 +175,11 @@ class ArkModDownloader:
         :return:
         """
         if not os.path.isdir(
-            os.path.join(self.working_dir, "ShooterGame\Content\Mods")
+            os.path.join(self.working_dir, "ShooterGame", "Content", "Mods")
         ):
             return
         for curdir, dirs, files in os.walk(
-            os.path.join(self.working_dir, "ShooterGame\Content\Mods")
+            os.path.join(self.working_dir, "ShooterGame", "Content", "Mods")
         ):
             for d in dirs:
                 self.installed_mods.append(d)
@@ -248,7 +248,9 @@ class ArkModDownloader:
         :return:
         """
 
-        ark_mod_folder = os.path.join(self.working_dir, "ShooterGame\Content\Mods")
+        ark_mod_folder = os.path.join(
+            self.working_dir, "ShooterGame", "Content", "Mods"
+        )
         output_dir = os.path.join(ark_mod_folder, str(modid))
         source_dir = os.path.join(self.temp_mod_path, modid, "WindowsNoEditor")
 
