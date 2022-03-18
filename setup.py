@@ -1,3 +1,3 @@
 from distutils.core import setup
 
-setup(console=["Ark_Mod_Downloader.py"], zipfile=None)
+setup(name="ark_mod_downloader", packages=["ark_mod_downloader"])

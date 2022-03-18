@@ -1,4 +1,4 @@
-import arkit
+from ark_mod_downloader import arkit
 import sys
 import os
 import argparse
@@ -9,9 +9,11 @@ import struct
 import urllib.request
 import zipfile
 
-class ArkModDownloader():
 
-    def __init__(self, steamcmd, modids, working_dir, mod_update, modname, preserve=False):
+class ArkModDownloader:
+    def __init__(
+        self, steamcmd, modids, working_dir, mod_update, modname, preserve=False
+    ):
 
         # I not working directory provided, check if CWD has an ARK server.
         self.working_dir = working_dir
@@ -28,7 +30,9 @@ class ArkModDownloader():
         self.installed_mods = []  # List to hold installed mods
         self.map_names = []  # Stores map names from mod.info
         self.meta_data = OrderedDict([])  # Stores key value from modmeta.info
-        self.temp_mod_path = os.path.join(os.path.dirname(self.steamcmd), r"steamapps\workshop\content\346110")
+        self.temp_mod_path = os.path.join(
+            os.path.dirname(self.steamcmd), r"steamapps\workshop\content\346110"
+        )
         self.preserve = preserve
 
         self.prep_steamcmd()
@@ -44,7 +48,11 @@ class ArkModDownloader():
                     if self.move_mod(mod):
                         print("[+] Mod {} Installation Finished".format(str(mod)))
                 else:
-                    print("[+] There was as problem downloading mod {}.  See above errors".format(str(mod)))
+                    print(
+                        "[+] There was as problem downloading mod {}.  See above errors".format(
+                            str(mod)
+                        )
+                    )
 
     def create_mod_name_txt(self, mod_folder, modid):
         print(os.path.join(mod_folder, self.map_names[0] + " - " + modid + ".txt"))
@@ -78,9 +86,13 @@ class ArkModDownloader():
 
         # Check TCAdmin Directory
         print("[+] SteamCMD Location Not Provided. Checking Common Locations")
-        if os.path.isfile(r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"):
+        if os.path.isfile(
+            r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"
+        ):
             print("[+] SteamCMD Located In TCAdmin Directory")
-            self.steamcmd = r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"
+            self.steamcmd = (
+                r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"
+            )
             return True
 
         # Check working directory
@@ -92,7 +104,9 @@ class ArkModDownloader():
         print("[+} SteamCMD Not Found In Common Locations. Attempting To Download")
 
         try:
-            with urllib.request.urlopen("https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip") as response:
+            with urllib.request.urlopen(
+                "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
+            ) as response:
                 if not os.path.isdir(os.path.join(self.working_dir, "SteamCMD")):
                     os.mkdir(os.path.join(self.working_dir, "SteamCMD"))
 
@@ -141,7 +155,9 @@ class ArkModDownloader():
                 already installed and up to date.
                 """
                 print("[x] Failed To Remove Steamapps Folder. This is normally okay.")
-                print("[x] If this is a TCAdmin Server and using the TCAdmin SteamCMD it may prevent mod from downloading")
+                print(
+                    "[x] If this is a TCAdmin Server and using the TCAdmin SteamCMD it may prevent mod from downloading"
+                )
 
     def update_mods(self):
         self.build_list_of_mods()
@@ -158,9 +174,13 @@ class ArkModDownloader():
         Build a list of all installed mods by grabbing all directory names from the mod folder
         :return:
         """
-        if not os.path.isdir(os.path.join(self.working_dir, "ShooterGame\Content\Mods")):
+        if not os.path.isdir(
+            os.path.join(self.working_dir, "ShooterGame\Content\Mods")
+        ):
             return
-        for curdir, dirs, files in os.walk(os.path.join(self.working_dir, "ShooterGame\Content\Mods")):
+        for curdir, dirs, files in os.walk(
+            os.path.join(self.working_dir, "ShooterGame\Content\Mods")
+        ):
             for d in dirs:
                 self.installed_mods.append(d)
             break
@@ -182,7 +202,6 @@ class ArkModDownloader():
 
         return True if self.extract_mod(modid) else False
 
-
     def extract_mod(self, modid):
         """
         Extract the .z files using the arkit lib.
@@ -193,7 +212,9 @@ class ArkModDownloader():
         print("[+] Extracting .z Files.")
 
         try:
-            for curdir, subdirs, files in os.walk(os.path.join(self.temp_mod_path, modid, "WindowsNoEditor")):
+            for curdir, subdirs, files in os.walk(
+                os.path.join(self.temp_mod_path, modid, "WindowsNoEditor")
+            ):
                 for file in files:
                     name, ext = os.path.splitext(file)
                     if ext == ".z":
@@ -201,12 +222,16 @@ class ArkModDownloader():
                         dst = os.path.join(curdir, name)
                         uncompressed = os.path.join(curdir, file + ".uncompressed_size")
                         arkit.unpack(src, dst)
-                        #print("[+] Extracted " + file)
+                        # print("[+] Extracted " + file)
                         os.remove(src)
                         if os.path.isfile(uncompressed):
                             os.remove(uncompressed)
 
-        except (arkit.UnpackException, arkit.SignatureUnpackException, arkit.CorruptUnpackException) as e:
+        except (
+            arkit.UnpackException,
+            arkit.SignatureUnpackException,
+            arkit.CorruptUnpackException,
+        ) as e:
             print("[x] Unpacking .z files failed, aborting mod install")
             return False
 
@@ -215,7 +240,6 @@ class ArkModDownloader():
                 return True
             else:
                 return False
-
 
     def move_mod(self, modid):
         """
@@ -255,10 +279,12 @@ class ArkModDownloader():
             return False
 
         print("[+] Writing .mod File")
-        with open(os.path.join(self.temp_mod_path, modid, r"WindowsNoEditor\.mod"), "w+b") as f:
+        with open(
+            os.path.join(self.temp_mod_path, modid, r"WindowsNoEditor\.mod"), "w+b"
+        ) as f:
 
             modid = int(modid)
-            f.write(struct.pack('ixxxx', modid))  # Needs 4 pad bits
+            f.write(struct.pack("ixxxx", modid))  # Needs 4 pad bits
             self.write_ue4_string("ModName", f)
             self.write_ue4_string("", f)
 
@@ -270,19 +296,19 @@ class ArkModDownloader():
 
             # Not sure of the reason for this
             num2 = 4280483635
-            f.write(struct.pack('I', num2))
+            f.write(struct.pack("I", num2))
             num3 = 2
-            f.write(struct.pack('i', num3))
+            f.write(struct.pack("i", num3))
 
             if "ModType" in self.meta_data:
-                mod_type = b'1'
+                mod_type = b"1"
             else:
-                mod_type = b'0'
+                mod_type = b"0"
 
             # TODO The packing on this char might need to be changed
-            f.write(struct.pack('p', mod_type))
+            f.write(struct.pack("p", mod_type))
             meta_length = len(self.meta_data)
-            f.write(struct.pack('i', meta_length))
+            f.write(struct.pack("i", meta_length))
 
             for k, v in self.meta_data.items():
                 self.write_ue4_string(k, f)
@@ -291,7 +317,7 @@ class ArkModDownloader():
         return True
 
     def read_ue4_string(self, file):
-        count = struct.unpack('i', file.read(4))[0]
+        count = struct.unpack("i", file.read(4))[0]
         flag = False
         if count < 0:
             flag = True
@@ -304,10 +330,10 @@ class ArkModDownloader():
 
     def write_ue4_string(self, string_to_write, file):
         string_length = len(string_to_write) + 1
-        file.write(struct.pack('i', string_length))
+        file.write(struct.pack("i", string_length))
         barray = bytearray(string_to_write, "utf-8")
         file.write(barray)
-        file.write(struct.pack('p', b'0'))
+        file.write(struct.pack("p", b"0"))
 
     def parse_meta_data(self, modid):
         """
@@ -325,20 +351,24 @@ class ArkModDownloader():
         print("[+] Collecting Mod Meta Data From modmeta.info")
         print("[+] Located The Following Meta Data:")
 
-        mod_meta = os.path.join(self.temp_mod_path, modid, r"WindowsNoEditor\modmeta.info")
+        mod_meta = os.path.join(
+            self.temp_mod_path, modid, r"WindowsNoEditor\modmeta.info"
+        )
         if not os.path.isfile(mod_meta):
-            print("[x] Failed To Locate modmeta.info. Cannot continue without it.  Aborting")
+            print(
+                "[x] Failed To Locate modmeta.info. Cannot continue without it.  Aborting"
+            )
             return False
 
         with open(mod_meta, "rb") as f:
 
-            total_pairs = struct.unpack('i', f.read(4))[0]
+            total_pairs = struct.unpack("i", f.read(4))[0]
 
             for i in range(total_pairs):
 
                 key, value = "", ""
 
-                key_bytes = struct.unpack('i', f.read(4))[0]
+                key_bytes = struct.unpack("i", f.read(4))[0]
                 key_flag = False
                 if key_bytes < 0:
                     key_flag = True
@@ -349,7 +379,7 @@ class ArkModDownloader():
                     raw = f.read(key_bytes)
                     key = raw[:-1].decode()
 
-                value_bytes = struct.unpack('i', f.read(4))[0]
+                value_bytes = struct.unpack("i", f.read(4))[0]
                 value_flag = False
                 if value_bytes < 0:
                     value_flag = True
@@ -366,7 +396,6 @@ class ArkModDownloader():
 
         return True
 
-
     def parse_base_info(self, modid):
 
         print("[+] Collecting Mod Details From mod.info")
@@ -379,7 +408,7 @@ class ArkModDownloader():
 
         with open(mod_info, "rb") as f:
             self.read_ue4_string(f)
-            map_count = struct.unpack('i', f.read(4))[0]
+            map_count = struct.unpack("i", f.read(4))[0]
 
             for i in range(map_count):
                 cur_map = self.read_ue4_string(f)
@@ -389,31 +418,62 @@ class ArkModDownloader():
         return True
 
 
-
 def main():
-    parser = argparse.ArgumentParser(description="A utility to download ARK Mods via SteamCMD")
-    parser.add_argument("--workingdir", default=None, dest="workingdir", help="Game server home directory.  Current Directory is used if this is not provided")
-    parser.add_argument("--modids", nargs="+", default=None, dest="modids", help="ID of Mod To Download")
-    parser.add_argument("--steamcmd", default=None, dest="steamcmd", help="Path to SteamCMD")
-    parser.add_argument("--update", default=None, action="store_true", dest="mod_update", help="Update Existing Mods.  ")
-    parser.add_argument("--preserve", default=None, action="store_true", dest="preserve", help="Don't Delete StreamCMD Content Between Runs")
-    parser.add_argument("--namefile", default=None, action="store_true", dest="modname", help="Create a .name File With Mods Text Name")
+    parser = argparse.ArgumentParser(
+        description="A utility to download ARK Mods via SteamCMD"
+    )
+    parser.add_argument(
+        "--workingdir",
+        default=None,
+        dest="workingdir",
+        help="Game server home directory.  Current Directory is used if this is not provided",
+    )
+    parser.add_argument(
+        "--modids", nargs="+", default=None, dest="modids", help="ID of Mod To Download"
+    )
+    parser.add_argument(
+        "--steamcmd", default=None, dest="steamcmd", help="Path to SteamCMD"
+    )
+    parser.add_argument(
+        "--update",
+        default=None,
+        action="store_true",
+        dest="mod_update",
+        help="Update Existing Mods.  ",
+    )
+    parser.add_argument(
+        "--preserve",
+        default=None,
+        action="store_true",
+        dest="preserve",
+        help="Don't Delete StreamCMD Content Between Runs",
+    )
+    parser.add_argument(
+        "--namefile",
+        default=None,
+        action="store_true",
+        dest="modname",
+        help="Create a .name File With Mods Text Name",
+    )
 
     args = parser.parse_args()
 
     if not args.modids and not args.mod_update:
         print("[x] No Mod ID Provided and Update Not Selected.  Aborting")
-        print("[?] Please provide a Mod ID to download or use --update to update your existing mods")
+        print(
+            "[?] Please provide a Mod ID to download or use --update to update your existing mods"
+        )
         sys.exit(0)
 
-    ArkModDownloader(args.steamcmd,
-                     args.modids,
-                     args.workingdir,
-                     args.mod_update,
-                     args.modname,
-                     args.preserve)
+    ArkModDownloader(
+        args.steamcmd,
+        args.modids,
+        args.workingdir,
+        args.mod_update,
+        args.modname,
+        args.preserve,
+    )
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
