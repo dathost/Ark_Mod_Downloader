@@ -12,7 +12,14 @@ import zipfile
 
 class ArkModDownloader:
     def __init__(
-        self, steamcmd: str, modids, working_dir, mod_update, modname, preserve=False
+        self,
+        steamcmd: str,
+        modids,
+        working_dir,
+        mod_update,
+        modname,
+        steamapps=None,
+        preserve=False,
     ):
 
         # I not working directory provided, check if CWD has an ARK server.
@@ -26,12 +33,15 @@ class ArkModDownloader:
             print("SteamCMD Not Found And We Were Unable To Download It")
             sys.exit(0)
 
+        self.steamapps = steamapps or os.path.join(
+            os.path.dirname(self.steamcmd), "steamapps"
+        )
         self.modname = modname
         self.installed_mods = []  # List to hold installed mods
         self.map_names = []  # Stores map names from mod.info
         self.meta_data = OrderedDict([])  # Stores key value from modmeta.info
         self.temp_mod_path = os.path.join(
-            os.path.dirname(self.steamcmd), "steamapps", "workshop", "content", "346110"
+            self.steamapps, "workshop", "content", "346110"
         )
         self.preserve = preserve
 
@@ -146,12 +156,10 @@ class ArkModDownloader:
         if self.preserve:
             return
 
-        steamapps = os.path.join(os.path.dirname(self.steamcmd), "steamapps")
-
-        if os.path.isdir(steamapps):
+        if os.path.isdir(self.steamapps):
             print("[+] Removing Steamapps Folder")
             try:
-                shutil.rmtree(steamapps)
+                shutil.rmtree(self.steamapps)
             except OSError:
                 """
                 If run on a TCAdmin server using TCAdmin's SteamCMD this may prevent mod from downloading if another
@@ -197,7 +205,8 @@ class ArkModDownloader:
         print("[+] Starting Download of Mod " + str(modid))
         args = []
         args.append(self.steamcmd)
-        args.append("+login anonymous")
+        args.append("+login")
+        args.append("anonymous")
         args.append("+workshop_download_item")
         args.append("346110")
         args.append(modid)
@@ -286,7 +295,7 @@ class ArkModDownloader:
 
         print("[+] Writing .mod File")
         with open(
-            os.path.join(self.temp_mod_path, modid, r"WindowsNoEditor\.mod"), "w+b"
+            os.path.join(self.temp_mod_path, modid, "WindowsNoEditor.mod"), "w+b"
         ) as f:
 
             modid = int(modid)
