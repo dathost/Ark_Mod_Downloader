@@ -295,7 +295,10 @@ class ArkModDownloader:
 
         print("[+] Writing .mod File")
         with open(
-            os.path.join(self.temp_mod_path, modid, "WindowsNoEditor.mod"), "w+b"
+            os.path.join(
+                self.working_dir, "ShooterGame", "Content", "Mods", modid + ".mod"
+            ),
+            "w+b",
         ) as f:
 
             modid = int(modid)
