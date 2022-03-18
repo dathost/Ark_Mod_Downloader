@@ -202,7 +202,7 @@ class ArkModDownloader:
         args.append("346110")
         args.append(modid)
         args.append("+quit")
-        subprocess.call(args, shell=True)
+        subprocess.call(args)
 
         return True if self.extract_mod(modid) else False
 
