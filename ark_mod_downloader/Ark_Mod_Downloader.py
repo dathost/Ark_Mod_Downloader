@@ -358,7 +358,7 @@ class ArkModDownloader:
         print("[+] Located The Following Meta Data:")
 
         mod_meta = os.path.join(
-            self.temp_mod_path, modid, r"WindowsNoEditor\modmeta.info"
+            self.temp_mod_path, modid, "WindowsNoEditor", "modmeta.info"
         )
         if not os.path.isfile(mod_meta):
             print(
@@ -406,7 +406,9 @@ class ArkModDownloader:
 
         print("[+] Collecting Mod Details From mod.info")
 
-        mod_info = os.path.join(self.temp_mod_path, modid, r"WindowsNoEditor\mod.info")
+        mod_info = os.path.join(
+            self.temp_mod_path, modid, "WindowsNoEditor", "mod.info"
+        )
 
         if not os.path.isfile(mod_info):
             print("[x] Failed to locate mod.info. Cannot Continue.  Aborting")
