@@ -299,9 +299,9 @@ class ArkModDownloader:
         ) as f:
 
             modid = int(modid)
-            f.write(struct.pack("ixxxx", modid))  # Needs 4 pad bits
+            f.write(struct.pack("Ixxxx", modid))  # Needs 4 pad bits
             self.write_ue4_string("ModName", f)
-            self.write_ue4_string("", f)
+            self.write_ue4_string(f"../../../ShooterGame/Content/Mods/{modid}", f)
 
             map_count = len(self.map_names)
             f.write(struct.pack("i", map_count))
@@ -316,12 +316,11 @@ class ArkModDownloader:
             f.write(struct.pack("i", num3))
 
             if "ModType" in self.meta_data:
-                mod_type = b"1"
+                mod_type = 1
             else:
-                mod_type = b"0"
+                mod_type = 0
 
-            # TODO The packing on this char might need to be changed
-            f.write(struct.pack("p", mod_type))
+            f.write(struct.pack("B", mod_type))
             meta_length = len(self.meta_data)
             f.write(struct.pack("i", meta_length))
 
