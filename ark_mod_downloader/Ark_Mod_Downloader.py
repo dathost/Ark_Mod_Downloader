@@ -284,7 +284,7 @@ class ArkModDownloader:
 
         return True
 
-    def create_mod_file(self, modid):
+    def create_mod_file(self, modid, mod_name="ModName"):
         """
         Create the .mod file.
         This code is an adaptation of the code from Ark Server Launcher.  All credit goes to Face Wound on Steam
@@ -303,7 +303,7 @@ class ArkModDownloader:
 
             modid = int(modid)
             f.write(struct.pack("Ixxxx", modid))  # Needs 4 pad bits
-            self.write_ue4_string("ModName", f)
+            self.write_ue4_string(mod_name, f)
             self.write_ue4_string(f"../../../ShooterGame/Content/Mods/{modid}", f)
 
             map_count = len(self.map_names)
