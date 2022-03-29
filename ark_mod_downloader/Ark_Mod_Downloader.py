@@ -77,6 +77,9 @@ class ArkModDownloader:
                                 "publishedfiledetails"
                             ][0]["time_updated"]
 
+        except FileNotFoundError:
+            pass
+
         except Exception as e:
             print("[+] Got error {} when checking for update".format(str(e)))
 
