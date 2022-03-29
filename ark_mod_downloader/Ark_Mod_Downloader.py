@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from collections import OrderedDict
 import struct
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -136,9 +137,9 @@ class ArkModDownloader:
                     print("[x] Error: " + str(e))
                     sys.exit()
 
-        except urllib.request.HTTPError as e:
+        except urllib.error.HTTPError as e:
             print("[x] Failed To Download SteamCMD. Aborting")
-            print("[x] ERROR: " + e)
+            print("[x] ERROR: %r" % e)
             return False
 
         self.steamcmd = os.path.join(self.working_dir, r"SteamCMD\steamcmd.exe")
