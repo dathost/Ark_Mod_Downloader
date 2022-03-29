@@ -1,13 +1,18 @@
-import sys
-import os
 import argparse
+import json
+import os
 import shutil
-import subprocess
 import struct
+import subprocess
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from collections import OrderedDict
 
 from ark_mod_downloader import arkit
+from steamfiles import acf
 
 
 class ArkModDownloader:
@@ -30,14 +35,56 @@ class ArkModDownloader:
         # If any issues happen in download and extract chain this returns false
         if modids:
             for mod in modids:
-                if self.download_mod(mod):
-                    print("[+] Mod {} Installation Finished".format(str(mod)))
-                else:
-                    print(
-                        "[+] There was as problem downloading mod {}.  See above errors".format(
-                            str(mod)
+                if self.update_needed(mod):
+                    if self.download_mod(mod):
+                        print("[+] Mod {} Installation Finished".format(str(mod)))
+                    else:
+                        print(
+                            "[+] There was as problem downloading mod {}.  See above errors".format(
+                                str(mod)
+                            )
                         )
-                    )
+                else:
+                    print("[+] Mod {} is already up to date".format(str(mod)))
+
+            shutil.copyfile(
+                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
+                os.path.join(self.workingdir, "ShooterGame", "appworkshop_346110.acf"),
+            )
+
+    def update_needed(self, modid):
+        local_updated_timestamp = None
+        remote_updated_timestamp = None
+
+        try:
+            with open(
+                os.path.join(self.workingdir, "ShooterGame", "appworkshop_346110.acf")
+            ) as f:
+                for existing_modid, existing_mod in acf.load(f)["AppWorkshop"][
+                    "WorkshopItemsInstalled"
+                ].items():
+                    if modid == existing_modid:
+                        local_updated_timestamp = int(existing_mod["timeupdated"])
+
+                        with urllib.request.urlopen(
+                            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+                            data=urllib.parse.urlencode(
+                                {"itemcount": "1", "publishedfileids[0]": modid}
+                            ).encode("utf-8"),
+                        ) as r:
+                            data = json.load(r)
+                            remote_updated_timestamp = data["response"][
+                                "publishedfiledetails"
+                            ][0]["time_updated"]
+
+        except Exception as e:
+            print("[+] Got error {} when checking for update".format(str(e)))
+
+        return (
+            not local_updated_timestamp
+            or not remote_updated_timestamp
+            or local_updated_timestamp != remote_updated_timestamp
+        )
 
     def download_mod(self, modid):
         """
