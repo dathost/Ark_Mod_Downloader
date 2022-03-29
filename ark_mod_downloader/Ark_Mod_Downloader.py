@@ -1,14 +1,13 @@
-from ark_mod_downloader import arkit
 import sys
 import os
 import argparse
 import shutil
 import subprocess
-from collections import OrderedDict
 import struct
-import urllib.error
-import urllib.request
-import zipfile
+
+from collections import OrderedDict
+
+from ark_mod_downloader import arkit
 
 
 class ArkModDownloader:
@@ -16,187 +15,29 @@ class ArkModDownloader:
         self,
         steamcmd: str,
         modids,
-        working_dir,
-        mod_update,
-        modname,
-        steamapps=None,
-        preserve=False,
+        workingdir,
+        steamapps,
     ):
-
-        # I not working directory provided, check if CWD has an ARK server.
-        self.working_dir = working_dir
-        if not working_dir:
-            self.working_dir_check()
-
+        self.workingdir = workingdir
         self.steamcmd = steamcmd  # Path to SteamCMD exe
-
-        if not self.steamcmd_check():
-            print("SteamCMD Not Found And We Were Unable To Download It")
-            sys.exit(0)
-
-        self.steamapps = steamapps or os.path.join(
-            os.path.dirname(self.steamcmd), "steamapps"
-        )
-        self.modname = modname
-        self.installed_mods = []  # List to hold installed mods
+        self.steamapps = steamapps
         self.map_names = []  # Stores map names from mod.info
         self.meta_data = OrderedDict([])  # Stores key value from modmeta.info
         self.temp_mod_path = os.path.join(
             self.steamapps, "workshop", "content", "346110"
         )
-        self.preserve = preserve
-
-        self.prep_steamcmd()
-
-        if mod_update:
-            print("[+] Mod Update Is Selected.  Updating Your Existing Mods")
-            self.update_mods()
 
         # If any issues happen in download and extract chain this returns false
         if modids:
             for mod in modids:
                 if self.download_mod(mod):
-                    if self.move_mod(mod):
-                        print("[+] Mod {} Installation Finished".format(str(mod)))
+                    print("[+] Mod {} Installation Finished".format(str(mod)))
                 else:
                     print(
                         "[+] There was as problem downloading mod {}.  See above errors".format(
                             str(mod)
                         )
                     )
-
-    def create_mod_name_txt(self, mod_folder, modid):
-        print(os.path.join(mod_folder, self.map_names[0] + " - " + modid + ".txt"))
-        with open(os.path.join(mod_folder, self.map_names[0] + ".txt"), "w+") as f:
-            f.write(modid)
-
-    def working_dir_check(self):
-        print("[!] No working directory provided.  Checking Current Directory")
-        print("[!] " + os.getcwd())
-        if os.path.isdir(os.path.join(os.getcwd(), "ShooterGame", "Content")):
-            print("[+] Current Directory Has Ark Server.  Using The Current Directory")
-            self.working_dir = os.getcwd()
-        else:
-            print("[x] Current Directory Does Not Contain An ARK Server. Aborting")
-            sys.exit(0)
-
-    def steamcmd_check(self):
-        """
-        If SteamCMD path is provided verify that exe exists.
-        If no path provided check TCAdmin path working dir.  If not located try to download SteamCMD.
-        :return: Bool
-        """
-
-        # Check provided directory
-        if self.steamcmd:
-            print("[+] Checking Provided Path For SteamCMD")
-            if os.path.isfile(self.steamcmd):
-                print("[+] SteamCMD Found At Provided Path")
-                return True
-
-            if os.path.isfile(os.path.join(self.steamcmd, "steamcmd.exe")):
-                self.steamcmd = os.path.join(self.steamcmd, "steamcmd.exe")
-                print("[+] SteamCMD Found At Provided Path")
-                return True
-
-        # Check TCAdmin Directory
-        print("[+] SteamCMD Location Not Provided. Checking Common Locations")
-        if os.path.isfile(
-            r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"
-        ):
-            print("[+] SteamCMD Located In TCAdmin Directory")
-            self.steamcmd = (
-                r"C:\Program Files\TCAdmin2\Monitor\Tools\SteamCmd\steamcmd.exe"
-            )
-            return True
-
-        # Check working directory
-        if os.path.isfile(os.path.join(self.working_dir, "SteamCMD", "steamcmd.exe")):
-            print("[+] Located SteamCMD")
-            self.steamcmd = os.path.join(self.working_dir, "SteamCMD", "steamcmd.exe")
-            return True
-
-        print("[+} SteamCMD Not Found In Common Locations. Attempting To Download")
-
-        try:
-            with urllib.request.urlopen(
-                "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
-            ) as response:
-                if not os.path.isdir(os.path.join(self.working_dir, "SteamCMD")):
-                    os.mkdir(os.path.join(self.working_dir, "SteamCMD"))
-
-                steam_cmd_zip = os.path.join(self.working_dir, "steamcmd.zip")
-                with open(steam_cmd_zip, "w+b") as output:
-                    output.write(response.read())
-
-                zip_file = zipfile.ZipFile(steam_cmd_zip)
-                try:
-                    zip_file.extractall(os.path.join(self.working_dir, "SteamCMD"))
-                except zipfile.BadZipfile as e:
-                    print("[x] Failed To Extract steamcmd.zip. Aborting")
-                    print("[x] Error: " + str(e))
-                    sys.exit()
-
-        except urllib.error.HTTPError as e:
-            print("[x] Failed To Download SteamCMD. Aborting")
-            print("[x] ERROR: %r" % e)
-            return False
-
-        self.steamcmd = os.path.join(self.working_dir, r"SteamCMD\steamcmd.exe")
-
-        return True
-
-    def prep_steamcmd(self):
-        """
-        Delete steamapp folder to prevent Steam from remembering it has downloaded this mod before
-        This is mainly for game hosts.  Example, hosts using TCAdmin have one SteamCMD folder. If mod was downloaded
-        by another customer SteamCMD will think it already exists and not download again.
-        :return:
-        """
-
-        if self.preserve:
-            return
-
-        if os.path.isdir(self.steamapps):
-            print("[+] Removing Steamapps Folder")
-            try:
-                shutil.rmtree(self.steamapps)
-            except OSError:
-                """
-                If run on a TCAdmin server using TCAdmin's SteamCMD this may prevent mod from downloading if another
-                user has downloaded the same mod.  This is due to SteamCMD's cache.  It will think this mod has is
-                already installed and up to date.
-                """
-                print("[x] Failed To Remove Steamapps Folder. This is normally okay.")
-                print(
-                    "[x] If this is a TCAdmin Server and using the TCAdmin SteamCMD it may prevent mod from downloading"
-                )
-
-    def update_mods(self):
-        self.build_list_of_mods()
-        if self.installed_mods:
-            for mod in self.installed_mods:
-                print("[+] Updating Mod " + mod)
-                if not self.download_mod(mod):
-                    print("[x] Error Updating Mod " + mod)
-        else:
-            print("[+] No Installed Mods Found.  Skipping Update")
-
-    def build_list_of_mods(self):
-        """
-        Build a list of all installed mods by grabbing all directory names from the mod folder
-        :return:
-        """
-        if not os.path.isdir(
-            os.path.join(self.working_dir, "ShooterGame", "Content", "Mods")
-        ):
-            return
-        for curdir, dirs, files in os.walk(
-            os.path.join(self.working_dir, "ShooterGame", "Content", "Mods")
-        ):
-            for d in dirs:
-                self.installed_mods.append(d)
-            break
 
     def download_mod(self, modid):
         """
@@ -262,9 +103,7 @@ class ArkModDownloader:
         :return:
         """
 
-        ark_mod_folder = os.path.join(
-            self.working_dir, "ShooterGame", "Content", "Mods"
-        )
+        ark_mod_folder = os.path.join(self.workingdir, "ShooterGame", "Content", "Mods")
         output_dir = os.path.join(ark_mod_folder, str(modid))
         source_dir = os.path.join(self.temp_mod_path, modid, "WindowsNoEditor")
 
@@ -278,10 +117,6 @@ class ArkModDownloader:
 
         print("[+] Moving Mod Files To: " + output_dir)
         shutil.copytree(source_dir, output_dir)
-
-        if self.modname:
-            print("Creating Mod Name File")
-            self.create_mod_name_txt(ark_mod_folder, modid)
 
         return True
 
@@ -297,7 +132,7 @@ class ArkModDownloader:
         print("[+] Writing .mod File")
         with open(
             os.path.join(
-                self.working_dir, "ShooterGame", "Content", "Mods", modid + ".mod"
+                self.workingdir, "ShooterGame", "Content", "Mods", modid + ".mod"
             ),
             "w+b",
         ) as f:
@@ -443,55 +278,25 @@ def main():
         description="A utility to download ARK Mods via SteamCMD"
     )
     parser.add_argument(
-        "--workingdir",
-        default=None,
-        dest="workingdir",
-        help="Game server home directory.  Current Directory is used if this is not provided",
+        "--workingdir", dest="workingdir", help="Game server home directory."
     )
     parser.add_argument(
         "--modids", nargs="+", default=None, dest="modids", help="ID of Mod To Download"
     )
-    parser.add_argument(
-        "--steamcmd", default=None, dest="steamcmd", help="Path to SteamCMD"
-    )
-    parser.add_argument(
-        "--update",
-        default=None,
-        action="store_true",
-        dest="mod_update",
-        help="Update Existing Mods.  ",
-    )
-    parser.add_argument(
-        "--preserve",
-        default=None,
-        action="store_true",
-        dest="preserve",
-        help="Don't Delete StreamCMD Content Between Runs",
-    )
-    parser.add_argument(
-        "--namefile",
-        default=None,
-        action="store_true",
-        dest="modname",
-        help="Create a .name File With Mods Text Name",
-    )
+    parser.add_argument("--steamcmd", dest="steamcmd", help="Path to SteamCMD")
+    parser.add_argument("--steamapps", dest="steamapps", help="Path to steamapps")
 
     args = parser.parse_args()
 
-    if not args.modids and not args.mod_update:
-        print("[x] No Mod ID Provided and Update Not Selected.  Aborting")
-        print(
-            "[?] Please provide a Mod ID to download or use --update to update your existing mods"
-        )
+    if not args.modids:
+        print("[x] No Mod IDs Provided.  Aborting")
         sys.exit(0)
 
     ArkModDownloader(
-        args.steamcmd,
-        args.modids,
-        args.workingdir,
-        args.mod_update,
-        args.modname,
-        args.preserve,
+        steamcmd=args.steamcmd,
+        modids=args.modids,
+        workingdir=args.workingdir,
+        steamapps=args.steamapps,
     )
 
 
