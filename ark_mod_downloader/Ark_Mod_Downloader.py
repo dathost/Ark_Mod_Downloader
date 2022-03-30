@@ -34,6 +34,17 @@ class ArkModDownloader:
 
         # If any issues happen in download and extract chain this returns false
         if modids:
+            os.makedirs(os.path.join(self.steamapps, "workshop"), exist_ok=True)
+            try:
+                shutil.copyfile(
+                    os.path.join(
+                        self.workingdir, "ShooterGame", "appworkshop_346110.acf"
+                    ),
+                    os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
+                )
+            except FileNotFoundError:
+                pass
+
             for mod in modids:
                 if self.update_needed(mod):
                     if self.download_mod(mod):
@@ -63,7 +74,7 @@ class ArkModDownloader:
 
         try:
             with open(
-                os.path.join(self.workingdir, "ShooterGame", "appworkshop_346110.acf")
+                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
             ) as f:
                 for existing_modid, existing_mod in acf.load(f)["AppWorkshop"][
                     "WorkshopItemsInstalled"
