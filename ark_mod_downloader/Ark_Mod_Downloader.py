@@ -47,10 +47,15 @@ class ArkModDownloader:
                 else:
                     print("[+] Mod {} is already up to date".format(str(mod)))
 
-            shutil.copyfile(
-                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
-                os.path.join(self.workingdir, "ShooterGame", "appworkshop_346110.acf"),
-            )
+            try:
+                shutil.copyfile(
+                    os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
+                    os.path.join(
+                        self.workingdir, "ShooterGame", "appworkshop_346110.acf"
+                    ),
+                )
+            except FileNotFoundError:
+                pass
 
     def update_needed(self, modid):
         local_updated_timestamp = None
