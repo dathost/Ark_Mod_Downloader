@@ -100,8 +100,8 @@ def unpack(src, dst):
                     logging.critical(msg)
                     raise CorruptUnpackException(msg)
 
-                #Read the actual archive data
-                data = b''
+                # Read the actual archive data
+                data = []
                 read_data = 0
                 for compressed, uncompressed in compression_index:
                     compressed_data = f.read(compressed)
@@ -109,7 +109,7 @@ def unpack(src, dst):
 
                     #Verify the size of the data is consistent with the archives index
                     if len(uncompressed_data) == uncompressed:
-                        data += uncompressed_data
+                        data.append(uncompressed_data)
                         read_data += 1
 
                         #Verify there is only one partial chunk
@@ -132,5 +132,7 @@ def unpack(src, dst):
 
     #Write the extracted data to disk
     with open(dst, 'wb') as f:
-        f.write(data)
+        for chunk in data:
+            f.write(chunk)
+
     logging.info("Archive has been extracted.")
