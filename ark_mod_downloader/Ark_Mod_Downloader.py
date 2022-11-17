@@ -31,23 +31,14 @@ class ArkModDownloader:
         self.temp_mod_path = os.path.join(
             self.steamapps, "workshop", "content", "346110"
         )
+        self.metafile = os.path.join(self.workingdir, "ShooterGame", "mod_state.json")
 
         # If any issues happen in download and extract chain this returns false
         if modids:
-            os.makedirs(os.path.join(self.steamapps, "workshop"), exist_ok=True)
-            try:
-                shutil.copyfile(
-                    os.path.join(
-                        self.workingdir, "ShooterGame", "appworkshop_346110.acf"
-                    ),
-                    os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
-                )
-            except FileNotFoundError:
-                pass
-
             for mod in modids:
                 if self.update_needed(mod):
                     if self.download_mod(mod):
+                        self.update_mod_state(mod)
                         print("[+] Mod {} Installation Finished".format(str(mod)))
                     else:
                         print(
@@ -58,40 +49,47 @@ class ArkModDownloader:
                 else:
                     print("[+] Mod {} is already up to date".format(str(mod)))
 
-            try:
-                shutil.copyfile(
-                    os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
-                    os.path.join(
-                        self.workingdir, "ShooterGame", "appworkshop_346110.acf"
-                    ),
-                )
-            except FileNotFoundError:
-                pass
+    def update_mod_state(self, modid):
+        modstate = {}
+        try:
+            with open(self.metafile) as f:
+                modstate = json.load(f)
+        except FileNotFoundError:
+            pass
+
+        with open(
+            os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
+        ) as f:
+            for existing_modid, existing_mod in acf.load(f)["AppWorkshop"][
+                "WorkshopItemsInstalled"
+            ].items():
+                if modid == existing_modid:
+                    modstate[modid] = existing_mod
+
+            with open(self.metafile, "w") as f:
+                json.dump(modstate, f)
 
     def update_needed(self, modid):
         local_updated_timestamp = None
         remote_updated_timestamp = None
 
         try:
-            with open(
-                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
-            ) as f:
-                for existing_modid, existing_mod in acf.load(f)["AppWorkshop"][
-                    "WorkshopItemsInstalled"
-                ].items():
-                    if modid == existing_modid:
-                        local_updated_timestamp = int(existing_mod["timeupdated"])
+            with open(self.metafile) as f:
+                modstate = json.load(f)
+                existing_mod = modstate.get(modid)
+                if existing_mod:
+                    local_updated_timestamp = int(existing_mod["timeupdated"])
 
-                        with urllib.request.urlopen(
-                            "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
-                            data=urllib.parse.urlencode(
-                                {"itemcount": "1", "publishedfileids[0]": modid}
-                            ).encode("utf-8"),
-                        ) as r:
-                            data = json.load(r)
-                            remote_updated_timestamp = data["response"][
-                                "publishedfiledetails"
-                            ][0]["time_updated"]
+                    with urllib.request.urlopen(
+                        "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+                        data=urllib.parse.urlencode(
+                            {"itemcount": "1", "publishedfileids[0]": modid}
+                        ).encode("utf-8"),
+                    ) as r:
+                        data = json.load(r)
+                        remote_updated_timestamp = data["response"][
+                            "publishedfiledetails"
+                        ][0]["time_updated"]
 
         except FileNotFoundError:
             pass
