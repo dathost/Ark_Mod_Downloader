@@ -108,6 +108,14 @@ class ArkModDownloader:
         Launch SteamCMD to download ModID
         :return:
         """
+
+        try:
+            os.remove(
+                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf")
+            )
+        except FileNotFoundError:
+            pass
+
         print("[+] Starting Download of Mod " + str(modid))
         args = []
         args.append(self.steamcmd)
