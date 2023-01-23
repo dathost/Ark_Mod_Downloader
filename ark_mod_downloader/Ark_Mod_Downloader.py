@@ -70,6 +70,15 @@ class ArkModDownloader:
                 json.dump(modstate, f)
 
     def update_needed(self, modid):
+        if not os.path.isfile(
+            os.path.join(
+                self.workingdir, "ShooterGame", "Content", "Mods", modid + ".mod"
+            )
+        ) or not os.path.isdir(
+            os.path.join(self.workingdir, "ShooterGame", "Content", "Mods", str(modid))
+        ):
+            return True
+
         local_updated_timestamp = None
         remote_updated_timestamp = None
 
