@@ -12,33 +12,30 @@ import urllib.request
 from collections import OrderedDict
 
 from ark_mod_downloader import arkit
-from steamfiles import acf
 
 
 class ArkModDownloader:
     def __init__(
         self,
-        steamcmd: str,
+        depotdownloader: str,
         modids,
         workingdir,
-        steamapps,
+        download_dir,
     ):
         self.workingdir = workingdir
-        self.steamcmd = steamcmd  # Path to SteamCMD exe
-        self.steamapps = steamapps
+        self.depotdownloader = depotdownloader  # Path to the DepotDownloader binary
         self.map_names = []  # Stores map names from mod.info
         self.meta_data = OrderedDict([])  # Stores key value from modmeta.info
-        self.temp_mod_path = os.path.join(
-            self.steamapps, "workshop", "content", "346110"
-        )
+        self.temp_mod_path = download_dir
         self.metafile = os.path.join(self.workingdir, "ShooterGame", "mod_state.json")
 
         # If any issues happen in download and extract chain this returns false
         if modids:
             for mod in modids:
-                if self.update_needed(mod):
+                remote_time_updated = self.remote_time_updated(mod)
+                if self.update_needed(mod, remote_time_updated):
                     if self.download_mod(mod):
-                        self.update_mod_state(mod)
+                        self.update_mod_state(mod, remote_time_updated)
                         print("[+] Mod {} Installation Finished".format(str(mod)))
                     else:
                         print(
@@ -49,7 +46,28 @@ class ArkModDownloader:
                 else:
                     print("[+] Mod {} is already up to date".format(str(mod)))
 
-    def update_mod_state(self, modid):
+    def remote_time_updated(self, modid):
+        """
+        Fetch the mod's last update timestamp from the Steam web API.
+        Returns None if it cannot be determined.
+        """
+        try:
+            with urllib.request.urlopen(
+                "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
+                data=urllib.parse.urlencode(
+                    {"itemcount": "1", "publishedfileids[0]": modid}
+                ).encode("utf-8"),
+            ) as r:
+                data = json.load(r)
+                return data["response"]["publishedfiledetails"][0]["time_updated"]
+        except Exception as e:
+            print("[+] Got error {} when checking for update".format(str(e)))
+            return None
+
+    def update_mod_state(self, modid, time_updated):
+        if time_updated is None:
+            return
+
         modstate = {}
         try:
             with open(self.metafile) as f:
@@ -57,19 +75,12 @@ class ArkModDownloader:
         except FileNotFoundError:
             pass
 
-        with open(
-            os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf"),
-        ) as f:
-            for existing_modid, existing_mod in acf.load(f)["AppWorkshop"][
-                "WorkshopItemsInstalled"
-            ].items():
-                if modid == existing_modid:
-                    modstate[modid] = existing_mod
+        modstate[modid] = {"timeupdated": time_updated}
 
-            with open(self.metafile, "w") as f:
-                json.dump(modstate, f)
+        with open(self.metafile, "w") as f:
+            json.dump(modstate, f)
 
-    def update_needed(self, modid):
+    def update_needed(self, modid, remote_time_updated):
         if not os.path.isfile(
             os.path.join(
                 self.workingdir, "ShooterGame", "Content", "Mods", modid + ".mod"
@@ -79,62 +90,44 @@ class ArkModDownloader:
         ):
             return True
 
-        local_updated_timestamp = None
-        remote_updated_timestamp = None
+        local_time_updated = None
 
         try:
             with open(self.metafile) as f:
-                modstate = json.load(f)
-                existing_mod = modstate.get(modid)
+                existing_mod = json.load(f).get(modid)
                 if existing_mod:
-                    local_updated_timestamp = int(existing_mod["timeupdated"])
-
-                    with urllib.request.urlopen(
-                        "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/",
-                        data=urllib.parse.urlencode(
-                            {"itemcount": "1", "publishedfileids[0]": modid}
-                        ).encode("utf-8"),
-                    ) as r:
-                        data = json.load(r)
-                        remote_updated_timestamp = data["response"][
-                            "publishedfiledetails"
-                        ][0]["time_updated"]
+                    local_time_updated = int(existing_mod["timeupdated"])
 
         except FileNotFoundError:
             pass
 
         except Exception as e:
-            print("[+] Got error {} when checking for update".format(str(e)))
+            print("[+] Got error {} when reading mod state".format(str(e)))
 
         return (
-            not local_updated_timestamp
-            or not remote_updated_timestamp
-            or local_updated_timestamp != remote_updated_timestamp
+            not local_time_updated
+            or not remote_time_updated
+            or local_time_updated != remote_time_updated
         )
 
     def download_mod(self, modid):
         """
-        Launch SteamCMD to download ModID
+        Launch DepotDownloader to download ModID
         :return:
         """
 
-        try:
-            os.remove(
-                os.path.join(self.steamapps, "workshop", "appworkshop_346110.acf")
-            )
-        except FileNotFoundError:
-            pass
-
         print("[+] Starting Download of Mod " + str(modid))
         args = []
-        args.append(self.steamcmd)
-        args.append("+login")
-        args.append("anonymous")
-        args.append("+workshop_download_item")
+        args.append(self.depotdownloader)
+        args.append("-app")
         args.append("346110")
+        args.append("-pubfile")
         args.append(modid)
-        args.append("+quit")
-        subprocess.call(args)
+        args.append("-dir")
+        args.append(os.path.join(self.temp_mod_path, modid))
+        if subprocess.call(args) != 0:
+            print("[x] DepotDownloader failed, aborting mod install")
+            return False
 
         return True if self.extract_mod(modid) else False
 
@@ -179,7 +172,7 @@ class ArkModDownloader:
 
     def move_mod(self, modid):
         """
-        Move mod from SteamCMD download location to the ARK server.
+        Move mod from the download location to the ARK server.
         It will delete an existing mod with the same ID
         :return:
         """
@@ -356,7 +349,7 @@ class ArkModDownloader:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="A utility to download ARK Mods via SteamCMD"
+        description="A utility to download ARK Mods via DepotDownloader"
     )
     parser.add_argument(
         "--workingdir", dest="workingdir", help="Game server home directory."
@@ -364,8 +357,16 @@ def main():
     parser.add_argument(
         "--modids", nargs="+", default=None, dest="modids", help="ID of Mod To Download"
     )
-    parser.add_argument("--steamcmd", dest="steamcmd", help="Path to SteamCMD")
-    parser.add_argument("--steamapps", dest="steamapps", help="Path to steamapps")
+    parser.add_argument(
+        "--depotdownloader",
+        dest="depotdownloader",
+        help="Path to the DepotDownloader binary",
+    )
+    parser.add_argument(
+        "--download-dir",
+        dest="download_dir",
+        help="Directory the mods are downloaded to before installation",
+    )
 
     args = parser.parse_args()
 
@@ -374,10 +375,10 @@ def main():
         sys.exit(0)
 
     ArkModDownloader(
-        steamcmd=args.steamcmd,
+        depotdownloader=args.depotdownloader,
         modids=args.modids,
         workingdir=args.workingdir,
-        steamapps=args.steamapps,
+        download_dir=args.download_dir,
     )
 
 
