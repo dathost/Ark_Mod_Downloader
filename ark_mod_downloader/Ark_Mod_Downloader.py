@@ -200,6 +200,9 @@ class ArkModDownloader:
         This code is an adaptation of the code from Ark Server Launcher.  All credit goes to Face Wound on Steam
         :return:
         """
+        # One instance installs every mod, and the parse methods append to these.
+        self.map_names = []
+        self.meta_data = OrderedDict([])
         if not self.parse_base_info(modid) or not self.parse_meta_data(modid):
             return False
 

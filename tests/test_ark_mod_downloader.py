@@ -6,47 +6,67 @@ import unittest
 from ark_mod_downloader import ArkModDownloader
 from collections import OrderedDict
 
+# The ARK client includes actual mod name in the .mod file, the server seem to work without it,
+# but if we get problems in the future we could look into getting it using steam API
+MODS = [
+    ("632898827", "Dino Colors Plus"),
+    ("679529026", "Ark Steampunk Mod"),
+    ("1984936918", "MarniiMods: Wildlife"),
+    ("2069758213", "Metallic Dodos Mod"),
+    ("2777653985", "RR-StarRainbowDinos"),
+]
+
 
 class TestArk(unittest.TestCase):
-    def compare_mod_file(self, modid: str, mod_name: str) -> None:
-        with tempfile.TemporaryDirectory() as source_path, tempfile.TemporaryDirectory() as destination_path:
-            mod_info_dir = os.path.join(source_path, modid, "WindowsNoEditor")
-            os.makedirs(mod_info_dir)
+    def setUp(self) -> None:
+        source_dir = tempfile.TemporaryDirectory()
+        destination_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(source_dir.cleanup)
+        self.addCleanup(destination_dir.cleanup)
+        self.source_path = source_dir.name
+        self.destination_path = destination_dir.name
+        self.mod_file_dir = os.path.join(
+            self.destination_path, "ShooterGame", "Content", "Mods"
+        )
+        os.makedirs(self.mod_file_dir)
+
+    def new_downloader(self) -> ArkModDownloader:
+        downloader = ArkModDownloader.__new__(ArkModDownloader)
+        downloader.map_names = []
+        downloader.meta_data = OrderedDict([])
+        downloader.temp_mod_path = self.source_path
+        downloader.workingdir = self.destination_path
+        return downloader
+
+    def stage_mod(self, modid: str) -> None:
+        mod_info_dir = os.path.join(self.source_path, modid, "WindowsNoEditor")
+        os.makedirs(mod_info_dir)
+        for filename in ("mod.info", "modmeta.info"):
             shutil.copyfile(
-                "tests/fixtures/ark_mods/%s/mod.info" % modid,
-                mod_info_dir + "/mod.info",
-            )
-            shutil.copyfile(
-                "tests/fixtures/ark_mods/%s/modmeta.info" % modid,
-                mod_info_dir + "/modmeta.info",
+                "tests/fixtures/ark_mods/%s/%s" % (modid, filename),
+                os.path.join(mod_info_dir, filename),
             )
 
-            mod_file_dir = os.path.join(
-                destination_path, "ShooterGame", "Content", "Mods"
-            )
-            os.makedirs(mod_file_dir)
+    def assert_mod_file_matches_fixture(self, modid: str) -> None:
+        with open(os.path.join(self.mod_file_dir, modid + ".mod"), "rb") as f:
+            actual = f.read()
 
-            ArkModDownloader.__init__ = lambda self: None  # type: ignore
-            downloader = ArkModDownloader()  # type: ignore
-            downloader.map_names = []
-            downloader.meta_data = OrderedDict([])
-            downloader.temp_mod_path = source_path
-            downloader.workingdir = destination_path
-            downloader.create_mod_file(modid, mod_name=mod_name)  # type: ignore
+        with open("tests/fixtures/ark_mods/%s.mod" % modid, "rb") as f:
+            expected = f.read()
 
-            with open(os.path.join(mod_file_dir, modid + ".mod"), "rb") as f:
-                actual = f.read()
-
-            with open("tests/fixtures/ark_mods/%s.mod" % modid, "rb") as f:
-                expected = f.read()
-
-            assert actual == expected
+        self.assertEqual(actual, expected, "%s.mod differs from fixture" % modid)
 
     def test_should_write_mod_files(self) -> None:
-        # The ARK client includes actual mod name in the .mod file, the server seem to work without it,
-        # but if we get problems in the future we could look into getting it using steam API
-        self.compare_mod_file("632898827", "Dino Colors Plus")
-        self.compare_mod_file("679529026", "Ark Steampunk Mod")
-        self.compare_mod_file("1984936918", "MarniiMods: Wildlife")
-        self.compare_mod_file("2069758213", "Metallic Dodos Mod")
-        self.compare_mod_file("2777653985", "RR-StarRainbowDinos")
+        for modid, mod_name in MODS:
+            self.stage_mod(modid)
+            self.new_downloader().create_mod_file(modid, mod_name=mod_name)  # type: ignore
+            self.assert_mod_file_matches_fixture(modid)
+
+    def test_should_only_list_own_maps_when_installing_several_mods(self) -> None:
+        downloader = self.new_downloader()
+        for modid, mod_name in MODS:
+            self.stage_mod(modid)
+            downloader.create_mod_file(modid, mod_name=mod_name)  # type: ignore
+
+        for modid, _ in MODS:
+            self.assert_mod_file_matches_fixture(modid)
