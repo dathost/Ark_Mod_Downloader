@@ -91,31 +91,49 @@ class TestArk(unittest.TestCase):
 
         self.assertEqual(self.read_mod_file(without_meta_data), expected)
 
-    def test_should_repair_mod_file_of_up_to_date_mod(self) -> None:
-        modid = MODS[1][0]
+    def install_broken_up_to_date_mod(self, modid: str) -> bytes:
         self.stage_mod(modid)
         self.new_downloader().create_mod_file(modid)  # type: ignore
         expected = self.read_mod_file(modid)
 
         self.stage_mod(modid, os.path.join(self.mod_file_dir, modid))
-        shutil.copyfile(
-            "tests/fixtures/ark_mods/%s.mod" % MODS[0][0],
-            os.path.join(self.mod_file_dir, modid + ".mod"),
-        )
+        with open(os.path.join(self.mod_file_dir, modid + ".mod"), "wb") as f:
+            f.write(b"broken")
+        return expected
+
+    def run_with_up_to_date_mods(self, modids: list[str]) -> mock.MagicMock:
         with open(
             os.path.join(self.destination_path, "ShooterGame", "mod_state.json"), "w"
         ) as f:
-            json.dump({modid: {"timeupdated": 1}}, f)
+            json.dump({modid: {"timeupdated": 1} for modid in modids}, f)
 
         with mock.patch.object(
             ArkModDownloader, "remote_time_updated", return_value=1
         ), mock.patch.object(ArkModDownloader, "download_mod") as download_mod:
             ArkModDownloader(
                 depotdownloader="unused",
-                modids=[modid],
+                modids=modids,
                 workingdir=self.destination_path,
                 download_dir=self.source_path,
             )
+        return download_mod
+
+    def test_should_repair_mod_file_of_up_to_date_mod(self) -> None:
+        modid = MODS[1][0]
+        expected = self.install_broken_up_to_date_mod(modid)
+
+        download_mod = self.run_with_up_to_date_mods([modid])
 
         download_mod.assert_not_called()
         self.assertEqual(self.read_mod_file(modid), expected)
+
+    def test_should_repair_later_mods_when_one_mod_info_is_malformed(self) -> None:
+        malformed, repairable = MODS[0][0], MODS[1][0]
+        mod_dir = self.stage_mod(malformed, os.path.join(self.mod_file_dir, malformed))
+        open(os.path.join(mod_dir, "mod.info"), "wb").close()
+        open(os.path.join(self.mod_file_dir, malformed + ".mod"), "wb").close()
+        expected = self.install_broken_up_to_date_mod(repairable)
+
+        self.run_with_up_to_date_mods([malformed, repairable])
+
+        self.assertEqual(self.read_mod_file(repairable), expected)

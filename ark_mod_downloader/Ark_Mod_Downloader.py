@@ -210,8 +210,11 @@ class ArkModDownloader:
         ) or not os.path.isfile(os.path.join(installed_dir, "modmeta.info")):
             return
 
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.create_mod_file(modid, source_dir=installed_dir)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.create_mod_file(modid, source_dir=installed_dir)
+        except Exception as e:
+            print("[x] Could not rebuild .mod file of mod {}: {}".format(modid, e))
 
     def create_mod_file(self, modid, mod_name="ModName", source_dir=None):
         """
