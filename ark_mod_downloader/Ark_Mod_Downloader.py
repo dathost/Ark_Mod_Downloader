@@ -1,4 +1,6 @@
 import argparse
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -44,6 +46,7 @@ class ArkModDownloader:
                             )
                         )
                 else:
+                    self.rewrite_installed_mod_file(mod)
                     print("[+] Mod {} is already up to date".format(str(mod)))
 
     def remote_time_updated(self, modid):
@@ -194,13 +197,40 @@ class ArkModDownloader:
 
         return True
 
-    def create_mod_file(self, modid, mod_name="ModName"):
+    def rewrite_installed_mod_file(self, modid):
+        """
+        Rebuild the .mod file of an installed mod from the mod.info and modmeta.info it was
+        installed with, so a .mod file that lists other mods' maps is repaired without a download.
+        """
+        installed_dir = os.path.join(
+            self.workingdir, "ShooterGame", "Content", "Mods", str(modid)
+        )
+        if not os.path.isfile(
+            os.path.join(installed_dir, "mod.info")
+        ) or not os.path.isfile(os.path.join(installed_dir, "modmeta.info")):
+            return
+
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.create_mod_file(modid, source_dir=installed_dir)
+        except Exception as e:
+            print("[x] Could not rebuild .mod file of mod {}: {}".format(modid, e))
+
+    def create_mod_file(self, modid, mod_name="ModName", source_dir=None):
         """
         Create the .mod file.
         This code is an adaptation of the code from Ark Server Launcher.  All credit goes to Face Wound on Steam
         :return:
         """
-        if not self.parse_base_info(modid) or not self.parse_meta_data(modid):
+        if source_dir is None:
+            source_dir = os.path.join(self.temp_mod_path, modid, "WindowsNoEditor")
+
+        # One instance installs every mod, and the parse methods append to these.
+        self.map_names = []
+        self.meta_data = OrderedDict([])
+        if not self.parse_base_info(source_dir) or not self.parse_meta_data(
+            source_dir
+        ):
             return False
 
         print("[+] Writing .mod File")
@@ -262,7 +292,7 @@ class ArkModDownloader:
         file.write(barray)
         file.write(struct.pack("p", b"0"))
 
-    def parse_meta_data(self, modid):
+    def parse_meta_data(self, mod_dir):
         """
         Parse the modmeta.info files and extract the key value pairs need to for the .mod file.
         How To Parse modmeta.info:
@@ -278,9 +308,7 @@ class ArkModDownloader:
         print("[+] Collecting Mod Meta Data From modmeta.info")
         print("[+] Located The Following Meta Data:")
 
-        mod_meta = os.path.join(
-            self.temp_mod_path, modid, "WindowsNoEditor", "modmeta.info"
-        )
+        mod_meta = os.path.join(mod_dir, "modmeta.info")
         if not os.path.isfile(mod_meta):
             print(
                 "[x] Failed To Locate modmeta.info. Cannot continue without it.  Aborting"
@@ -323,13 +351,11 @@ class ArkModDownloader:
 
         return True
 
-    def parse_base_info(self, modid):
+    def parse_base_info(self, mod_dir):
 
         print("[+] Collecting Mod Details From mod.info")
 
-        mod_info = os.path.join(
-            self.temp_mod_path, modid, "WindowsNoEditor", "mod.info"
-        )
+        mod_info = os.path.join(mod_dir, "mod.info")
 
         if not os.path.isfile(mod_info):
             print("[x] Failed to locate mod.info. Cannot Continue.  Aborting")
